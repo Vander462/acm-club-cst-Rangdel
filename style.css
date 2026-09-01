@@ -1,0 +1,64 @@
+/* Shared stylesheet for the ACM Club at CST website.
+   Every page links to this file — see the team agreement in README.md. */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #222222;
+  background-color: #ffffff;
+  line-height: 1.5;
+}
+
+header {
+  background-color: #1b3a5c;
+  color: #ffffff;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+nav {
+  background-color: #f2f2f2;
+  border-bottom: 1px solid #dddddd;
+}
+
+nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 12px 16px;
+  display: flex;
+  gap: 20px;
+}
+
+nav a {
+  color: #1b3a5c;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}
+
+main {
+  max-width: 700px;
+  margin: 32px auto;
+  padding: 0 16px;
+}
+
+footer {
+  text-align: center;
+  padding: 16px;
+  margin-top: 40px;
+  font-size: 14px;
+  color: #666666;
+  border-top: 1px solid #dddddd;
+}
