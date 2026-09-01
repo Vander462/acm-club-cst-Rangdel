@@ -7,7 +7,7 @@ A small website for the ACM Club at CST, built as a team for CTE412 Lab 9
 
 | Member | Name | Student No. |
 |---|---|---|
-| A | _Your Name_ | _Student No._ |
+| A | karma Gyrlsten | 02220150 |
 | B | _Your Name_ | _Student No._ |
 | C | _Your Name (if applicable)_ | _Student No._ |
 
