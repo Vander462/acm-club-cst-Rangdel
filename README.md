@@ -9,7 +9,7 @@ A small website for the ACM Club at CST, built as a team for CTE412 Lab 9
 |---|---|---|
 | A | karma Gyeltshen | 02220150 |
 | B | Choney Rangdel | 02230122 |
-| C | Thuten Tsherng | 02230155 |
+| C | Thukten Tsherng | 02230155 |
 
 ## Team agreement (Part B)
 
