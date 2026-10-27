@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { STATUS_LABEL, nu } from "@/lib/services";
 
 const fmt = new Intl.DateTimeFormat("en-GB", {
@@ -25,6 +25,15 @@ export default function AdminSheet({ initial }) {
   const [confirmId, setConfirmId] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [msg, setMsg] = useState("");
+  const [chatId, setChatId] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatText, setChatText] = useState("");
+  useEffect(() => {
+    if (!chatId) return;
+    loadChat(chatId);
+    const timer = setInterval(() => loadChat(chatId), 3500);
+    return () => clearInterval(timer);
+  }, [chatId]);
 
   async function send(id, body) {
     setBusyId(id);
@@ -51,6 +60,24 @@ export default function AdminSheet({ initial }) {
       setBusyId(null);
       setConfirmId(null);
     }
+  }
+
+  async function loadChat(id) {
+    const res = await fetch(`/api/requests/${id}/messages`, { cache: "no-store" });
+    const data = await res.json();
+    if (res.ok) setChatMessages(data.messages || []);
+  }
+
+  async function sendChat(e) {
+    e.preventDefault();
+    if (!chatText.trim() || !chatId) return;
+    const text = chatText.trim(); setChatText("");
+    const res = await fetch(`/api/requests/${chatId}/messages`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text })
+    });
+    const data = await res.json();
+    if (!res.ok) setMsg(data.error || "Could not send message.");
+    else loadChat(chatId);
   }
 
   async function refresh() {
@@ -92,12 +119,12 @@ export default function AdminSheet({ initial }) {
 
   function exportCsv() {
     const head = ["Ticket", "Sent", "Name", "Student ID", "Phone", "Service", "Details", "Laptop", "Meeting place",
-      "Preferred date", "Notes", "Cost (Nu.)", "Status", "Admin note", "Confirmed"];
+      "Preferred date", "Notes", "Cost (Nu.)", "Status", "In-charge", "Admin note", "Confirmed"];
     const lines = [head.map(csvCell).join(",")];
     shown.forEach((r) =>
       lines.push(
         [r.code, when(r.createdAt), r.name, r.studentId, r.phone, r.serviceName, r.details, r.laptopModel, r.place,
-          r.preferredDate, r.notes, r.cost, STATUS_LABEL[r.status], r.adminNote, when(r.confirmedAt)]
+          r.preferredDate, r.notes, r.cost, STATUS_LABEL[r.status], r.incharge, r.adminNote, when(r.confirmedAt)]
           .map(csvCell)
           .join(",")
       )
@@ -115,7 +142,7 @@ export default function AdminSheet({ initial }) {
     <div className="admin">
       <div className="admin-bar">
         <div>
-          <p className="eyebrow">ACM Club · Admin</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}><img src="/acm-logo.png" alt="ACM logo" width="44" height="44" style={{ objectFit: "contain", background: "#fff", borderRadius: 10 }} /><p className="eyebrow">ACM Club · Admin</p></div>
           <h1>Request sheet</h1>
         </div>
         <div className="admin-actions">
@@ -158,13 +185,13 @@ export default function AdminSheet({ initial }) {
           <thead>
             <tr>
               <th>Ticket</th><th>Sent</th><th>Name</th><th>Student ID</th><th>Phone</th><th>Service</th>
-              <th>Details</th><th>Laptop</th><th>Meeting place</th><th>Preferred date</th>
-              <th className="num">Cost (Nu.)</th><th>Status</th><th>Admin note</th><th>Confirmation</th>
+              <th>Software / details</th><th>Laptop</th><th>Meeting place</th><th>Preferred date</th>
+              <th className="num">Cost (Nu.)</th><th>Status</th><th>In-charge</th><th>Admin note</th><th>Chat</th><th>Confirmation</th>
             </tr>
           </thead>
           <tbody>
             {shown.length === 0 && (
-              <tr><td colSpan={14} className="none">No requests match.</td></tr>
+              <tr><td colSpan={16} className="none">No requests match.</td></tr>
             )}
             {shown.map((r) => {
               const locked = r.status === "completed";
@@ -228,6 +255,16 @@ export default function AdminSheet({ initial }) {
                   </td>
                   <td>
                     <input
+                      key={key("incharge")}
+                      defaultValue={r.incharge}
+                      placeholder="Assign in-charge"
+                      disabled={locked || busy}
+                      aria-label={`In-charge for ${r.code}`}
+                      onBlur={(e) => e.target.value.trim() !== r.incharge && send(r.id, { incharge: e.target.value })}
+                    />
+                  </td>
+                  <td>
+                    <input
                       key={key("note")}
                       defaultValue={r.adminNote}
                       placeholder="Add a note"
@@ -235,6 +272,9 @@ export default function AdminSheet({ initial }) {
                       aria-label={`Admin note for ${r.code}`}
                       onBlur={(e) => e.target.value.trim() !== r.adminNote && send(r.id, { adminNote: e.target.value })}
                     />
+                  </td>
+                  <td className="nowrap">
+                    <button className="mini solid" type="button" onClick={() => { setChatId(r.id); setChatMessages([]); loadChat(r.id); }}>Open chat</button>
                   </td>
                   <td className="nowrap">
                     {locked ? (
@@ -269,6 +309,15 @@ export default function AdminSheet({ initial }) {
       <p className="note" style={{ marginTop: 12 }}>
         Edits save when you leave a field. Completed requests are locked and hidden from the public queue until you reopen them.
       </p>
+      {chatId && (
+        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setChatId(null)}>
+          <section className="chat-modal">
+            <header className="chat-head"><div><span className="eyebrow">REQUEST CHAT</span><h2>Student conversation</h2><p>Coordinate a meeting and clarify request details.</p></div><button className="close-btn" onClick={() => setChatId(null)}>×</button></header>
+            <div className="chat-messages">{chatMessages.length ? chatMessages.map(m => <div className={`message ${m.senderRole === "admin" ? "mine" : "theirs"}`} key={m.id}><small>{m.senderName || (m.senderRole === "admin" ? "ACM In-charge" : "Student")}</small><p>{m.message}</p><time>{when(m.createdAt)}</time></div>) : <p className="chat-empty">No messages yet. Send a message to the student.</p>}</div>
+            <form className="chat-compose" onSubmit={sendChat}><input value={chatText} onChange={e => setChatText(e.target.value)} placeholder="Message the student…" maxLength={1000}/><button className="primary-btn" disabled={!chatText.trim()}>Send ↗</button></form>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

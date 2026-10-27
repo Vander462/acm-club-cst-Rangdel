@@ -33,6 +33,7 @@ export default function AdminLogin() {
   return (
     <div className="wrap" style={{ maxWidth: 420, paddingTop: 60 }}>
       <header className="hero">
+        <img src="/acm-logo.png" alt="ACM logo" width="64" height="64" style={{ objectFit: "contain", background: "#fff", borderRadius: 14 }} />
         <p className="eyebrow">ACM Club · Admin</p>
         <h1 style={{ fontSize: "2.4rem" }}>
           CST <span>Zhabto</span>

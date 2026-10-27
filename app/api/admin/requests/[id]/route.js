@@ -44,12 +44,21 @@ export async function PATCH(req, { params }) {
     }
     sets.push("status=?");
     vals.push(b.status);
+    if (b.status === "in_progress" && !row.incharge) {
+      sets.push("incharge=?");
+      vals.push(String(b.incharge || "ACM Club").trim().slice(0, 100));
+    }
   }
   if ("cost" in b) {
     const c = Math.floor(Number(b.cost));
     if (!Number.isFinite(c) || c < 0 || c > 100000) return fail("Enter a valid cost.");
     sets.push("cost=?");
     vals.push(c);
+  }
+  if ("incharge" in b) {
+    const name = String(b.incharge ?? "").trim().slice(0, 100);
+    sets.push("incharge=?");
+    vals.push(name);
   }
   if ("adminNote" in b) {
     sets.push("admin_note=?");

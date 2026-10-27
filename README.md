@@ -53,3 +53,17 @@ components/Home.js                public page UI
 components/AdminSheet.js          spreadsheet UI
 lib/db.js  lib/auth.js  lib/services.js
 ```
+
+
+## Updated ACM Zhabto features
+
+- Blue/cyan visual theme inspired by the ACM logo; Zhabto remains orange in the brand treatment where applicable.
+- ACM logo is available at `public/acm-logo.png`.
+- Student request form focuses on full name, student ID, contact number, requested software, estimated cost, and preferred date.
+- The student request list is filtered on the server using the submitted student ID and contact number; it does not show a public queue of everyone’s requests.
+- Admin request sheet includes an editable **In-charge** column and includes it in CSV export.
+- Students and admins can exchange messages in a request-specific chat. Accepted requests show an in-app acceptance notice and the assigned in-charge on the student view.
+
+### Identity note
+
+This version uses the student ID plus contact number as a lightweight ownership check, not a full authentication system. Before production deployment with real student data, add verified sign-in or an OTP flow, apply rate limiting, and use a persistent production database/hosting configuration.
