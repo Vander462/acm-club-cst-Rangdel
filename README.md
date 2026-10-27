@@ -1,30 +1,55 @@
-# ACM Club at CST — Website
+# CST Zhabto
 
-A small website for the ACM Club at CST, built as a team for CTE412 Lab 9
-(Collaborating on a Shared Repository).
-
-## Team
-
-| Member | Name | Student No. |
-|---|---|---|
-| A | karma Gyeltshen | 02220150 |
-| B | Choney Rangdel | 02230122 |
-| C | Thukten Tshering | 02230155 |
-
-## Team agreement (Part B)
-
-- Every page shares the same navigation area, defined in the `<nav>` block
-  at the top of each page, linking to every page on the site.
-- Every page links to the same shared stylesheet, `style.css`. Page-specific
-  styling is added to this same file rather than a separate stylesheet.
+IT service requests for the ACM Club, College of Science and Technology.
+Built with Next.js 14 (App Router) and SQLite.
 
 ## Pages
 
-- `index.html` — Home page (Member A)
-- _add each teammate's page here as it's built, e.g._
-  - `contact.html` — Contact page (Member B)
-  - `registration.html` — Membership registration page (Member C)
+| Page | Who | What it does |
+| --- | --- | --- |
+| `/` | Students | Service menu with prices, request form, public queue of active requests |
+| `/admin/login` | Club admin | Password sign-in |
+| `/admin` | Club admin | Spreadsheet of every request: student details, status, cost, notes, confirmation |
 
-## Ignored files
+## Run it
 
-`build/` and `*.log` files are not tracked — see `.gitignore`.
+```bash
+npm install
+cp .env.example .env.local     # then set ADMIN_PASSWORD and AUTH_SECRET
+npm run dev                    # http://localhost:3000
+```
+
+For production: `npm run build && npm start`.
+
+## How requests work
+
+1. A student picks a service and sends the form. The server validates it and calculates the price itself.
+2. The request appears in the public queue as **Pending** (ticket code, service, first name, status only).
+3. The admin changes it to **In progress** in the sheet and can edit the cost, meeting place, date and a private note.
+4. The admin clicks **Confirm completed**. The request is then locked, removed from the public queue, and can only be seen and changed in `/admin`. **Reopen to edit** unlocks it again.
+
+Students have no endpoint that can change a request. Every change goes through `PATCH /api/admin/requests/[id]`, which requires the admin cookie.
+
+## Change prices or services
+
+Edit `lib/services.js`. Prices there are used by the form and by the server.
+
+## Notes for deployment
+
+- SQLite stores data in `data/zhabto.db` (or `DB_PATH`). Host it somewhere with a persistent disk, such as a VPS or a college server. Serverless hosts like Vercel do not keep the file between requests.
+- Set a strong `ADMIN_PASSWORD` and a random `AUTH_SECRET`. The login cookie lasts 8 hours.
+- Back up the `data` folder regularly.
+
+## Project layout
+
+```
+app/page.js                       public page
+app/admin/page.js                 admin sheet (server-checks the login cookie)
+app/admin/login/page.js           admin login form
+app/api/requests/route.js         public: list active requests, create a request
+app/api/admin/login|logout        admin session
+app/api/admin/requests/           admin: list all, edit, confirm, reopen
+components/Home.js                public page UI
+components/AdminSheet.js          spreadsheet UI
+lib/db.js  lib/auth.js  lib/services.js
+```
