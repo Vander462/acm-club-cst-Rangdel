@@ -6,7 +6,8 @@ import AdminSheet from "@/components/AdminSheet";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "CST Zhabto Admin" };
 
-export default function AdminPage() {
+export default async function AdminPage() {
   if (!isAdmin()) redirect("/admin/login");
-  return <AdminSheet initial={listAll()} />;
+  const initial = await listAll();
+  return <AdminSheet initial={initial} />;
 }

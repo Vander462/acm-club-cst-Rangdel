@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, getById } from "@/lib/db";
+import { getById, getMessages, addMessage } from "@/lib/db";
 import { isAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -15,21 +15,26 @@ function authorized(req, row) {
 }
 
 export async function GET(req, { params }) {
-  const row = getById(Number(params.id));
+  const row = await getById(Number(params.id));
   if (!row) return NextResponse.json({ error: "Request not found." }, { status: 404 });
   if (!authorized(req, row)) return NextResponse.json({ error: "Not authorised." }, { status: 401 });
-  const messages = db.prepare("SELECT id, sender_role AS senderRole, sender_name AS senderName, message, created_at AS createdAt FROM messages WHERE request_id=? ORDER BY created_at ASC").all(row.id);
+  const messages = await getMessages(row.id);
   return NextResponse.json({ messages });
 }
 
 export async function POST(req, { params }) {
-  const row = getById(Number(params.id));
+  const row = await getById(Number(params.id));
   if (!row) return NextResponse.json({ error: "Request not found." }, { status: 404 });
   const sender = authorized(req, row);
   if (!sender) return NextResponse.json({ error: "Not authorised." }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const message = clean(body.message, 1000);
   if (!message) return NextResponse.json({ error: "Write a message first." }, { status: 400 });
-  db.prepare("INSERT INTO messages (request_id, sender_role, sender_name, message, created_at) VALUES (?, ?, ?, ?, ?)").run(row.id, sender.role, sender.name, message, Date.now());
+  await addMessage({
+    request_id: row.id,
+    sender_role: sender.role,
+    sender_name: sender.name,
+    message,
+  });
   return NextResponse.json({ ok: true }, { status: 201 });
 }

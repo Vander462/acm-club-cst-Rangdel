@@ -22,12 +22,12 @@ export default function AdminSheet({ initial }) {
   const [rows, setRows] = useState(initial);
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");
-  const [confirmId, setConfirmId] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [msg, setMsg] = useState("");
   const [chatId, setChatId] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatText, setChatText] = useState("");
+  
   useEffect(() => {
     if (!chatId) return;
     loadChat(chatId);
@@ -51,14 +51,25 @@ export default function AdminSheet({ initial }) {
       const data = await res.json();
       if (!res.ok) {
         setMsg(data.error || "Could not save.");
-        return;
+        return false;
       }
       setRows((rs) => rs.map((r) => (r.id === id ? data.request : r)));
+      return true;
     } catch {
       setMsg("Network error. Try again.");
+      return false;
     } finally {
       setBusyId(null);
-      setConfirmId(null);
+    }
+  }
+
+  async function acceptRequest(id) {
+    const row = rows.find((item) => item.id === id);
+    const accepted = await send(id, { status: "in_progress", incharge: row?.incharge || "ACM In-charge" });
+    if (accepted) {
+      setChatId(id);
+      setChatMessages([]);
+      loadChat(id);
     }
   }
 
@@ -143,11 +154,12 @@ export default function AdminSheet({ initial }) {
       <div className="admin-bar">
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}><img src="/acm-logo.png" alt="ACM logo" width="44" height="44" style={{ objectFit: "contain", background: "#fff", borderRadius: 10 }} /><p className="eyebrow">ACM Club · Admin</p></div>
-          <h1>Request sheet</h1>
+          <h1>Requests</h1>
         </div>
         <div className="admin-actions">
-          <button className="btn ghost" type="button" onClick={refresh}>Refresh</button>
-          <button className="btn ghost" type="button" onClick={exportCsv}>Export CSV</button>
+          <button className="btn ghost" type="button" onClick={refresh} title="Refresh">↻</button>
+          <button className="btn ghost" type="button" onClick={() => window.location.href = "/admin/services"}>Services</button>
+          <button className="btn ghost" type="button" onClick={() => window.location.href = "/admin/providers"}>Providers</button>
           <button className="btn ghost" type="button" onClick={logout}>Sign out</button>
         </div>
       </div>
@@ -184,68 +196,34 @@ export default function AdminSheet({ initial }) {
         <table className="grid">
           <thead>
             <tr>
-              <th>Ticket</th><th>Sent</th><th>Name</th><th>Student ID</th><th>Phone</th><th>Service</th>
-              <th>Software / details</th><th>Laptop</th><th>Meeting place</th><th>Preferred date</th>
-              <th className="num">Cost (Nu.)</th><th>Status</th><th>In-charge</th><th>Admin note</th><th>Chat</th><th>Confirmation</th>
+              <th>Ticket</th><th>Student</th><th>Service</th><th>Details</th>
+              <th>Cost</th><th>Status</th><th>In-charge</th>
             </tr>
           </thead>
           <tbody>
             {shown.length === 0 && (
-              <tr><td colSpan={16} className="none">No requests match.</td></tr>
+              <tr><td colSpan={7} className="none">No requests match.</td></tr>
             )}
             {shown.map((r) => {
               const locked = r.status === "completed";
-              const key = (f) => `${r.id}-${r.updatedAt}-${f}`;
               const busy = busyId === r.id;
               return (
                 <tr key={r.id} className={locked ? "locked" : ""}>
                   <td className="mono">{r.code}</td>
-                  <td className="nowrap">{when(r.createdAt)}</td>
-                  <td>{r.name}</td>
-                  <td className="mono">{r.studentId}</td>
-                  <td className="mono">{r.phone}</td>
+                  <td>
+                    <div>{r.name}</div>
+                    <small className="mono">{r.studentId}</small>
+                  </td>
                   <td>{r.serviceName}</td>
-                  <td className="wide">{r.details}{r.notes ? <em> · Note: {r.notes}</em> : null}</td>
-                  <td>{r.laptopModel}</td>
-                  <td>
-                    <input
-                      key={key("place")}
-                      defaultValue={r.place}
-                      disabled={locked || busy}
-                      aria-label={`Meeting place for ${r.code}`}
-                      onBlur={(e) => e.target.value.trim() !== r.place && send(r.id, { place: e.target.value })}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      key={key("date")}
-                      type="date"
-                      defaultValue={r.preferredDate}
-                      disabled={locked || busy}
-                      aria-label={`Preferred date for ${r.code}`}
-                      onBlur={(e) => e.target.value !== r.preferredDate && send(r.id, { preferredDate: e.target.value })}
-                    />
-                  </td>
-                  <td className="num">
-                    <input
-                      key={key("cost")}
-                      type="number"
-                      min="0"
-                      defaultValue={r.cost}
-                      disabled={locked || busy}
-                      aria-label={`Cost for ${r.code}`}
-                      onBlur={(e) => Number(e.target.value) !== r.cost && send(r.id, { cost: Number(e.target.value) })}
-                    />
-                  </td>
+                  <td className="wide">{r.details}</td>
+                  <td className="num">Nu. {r.cost}</td>
                   <td>
                     {locked ? (
                       <span className="pill completed">Completed</span>
                     ) : (
                       <select
-                        key={key("status")}
                         defaultValue={r.status}
                         disabled={busy}
-                        aria-label={`Status for ${r.code}`}
                         onChange={(e) => send(r.id, { status: e.target.value })}
                       >
                         <option value="pending">Pending</option>
@@ -253,52 +231,15 @@ export default function AdminSheet({ initial }) {
                       </select>
                     )}
                   </td>
-                  <td>
-                    <input
-                      key={key("incharge")}
-                      defaultValue={r.incharge}
-                      placeholder="Assign in-charge"
-                      disabled={locked || busy}
-                      aria-label={`In-charge for ${r.code}`}
-                      onBlur={(e) => e.target.value.trim() !== r.incharge && send(r.id, { incharge: e.target.value })}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      key={key("note")}
-                      defaultValue={r.adminNote}
-                      placeholder="Add a note"
-                      disabled={locked || busy}
-                      aria-label={`Admin note for ${r.code}`}
-                      onBlur={(e) => e.target.value.trim() !== r.adminNote && send(r.id, { adminNote: e.target.value })}
-                    />
-                  </td>
                   <td className="nowrap">
-                    <button className="mini solid" type="button" onClick={() => { setChatId(r.id); setChatMessages([]); loadChat(r.id); }}>Open chat</button>
-                  </td>
-                  <td className="nowrap">
-                    {locked ? (
-                      <div className="conf">
-                        <span>Confirmed {when(r.confirmedAt)}</span>
-                        <button className="mini" type="button" disabled={busy} onClick={() => send(r.id, { action: "reopen" })}>
-                          Reopen to edit
-                        </button>
-                      </div>
-                    ) : confirmId === r.id ? (
-                      <div className="conf">
-                        <span>Mark as completed and lock?</span>
-                        <span className="row">
-                          <button className="mini solid" type="button" disabled={busy} onClick={() => send(r.id, { action: "confirm" })}>
-                            Yes, confirm
-                          </button>
-                          <button className="mini" type="button" onClick={() => setConfirmId(null)}>Cancel</button>
-                        </span>
-                      </div>
-                    ) : (
-                      <button className="mini solid" type="button" disabled={busy} onClick={() => setConfirmId(r.id)}>
-                        Confirm completed
+                    {r.incharge && <div>{r.incharge}</div>}
+                    {r.status === "pending" ? (
+                      <button className="mini solid" type="button" disabled={busy} onClick={() => acceptRequest(r.id)}>
+                        {busy ? "Accepting…" : "Accept"}
                       </button>
-                    )}
+                    ) : r.status === "in_progress" ? (
+                      <button className="mini" type="button" onClick={() => { setChatId(r.id); setChatMessages([]); loadChat(r.id); }}>Open chat</button>
+                    ) : null}
                   </td>
                 </tr>
               );

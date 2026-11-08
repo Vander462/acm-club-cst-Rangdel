@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { SERVICES, STATUS_LABEL, nu } from "@/lib/services";
+import { STATUS_LABEL, nu } from "@/lib/services";
+import Navigation from "@/components/Navigation";
 
 const empty = { name: "", studentId: "", phone: "", software: "", preferredDate: "", service: "install-software", cost: 50 };
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Thimphu" });
@@ -13,7 +14,8 @@ export default function Home() {
   const [showRequest, setShowRequest] = useState(false);
   const [identity, setIdentity] = useState({ studentId: "", phone: "" });
   const [requests, setRequests] = useState([]);
-  const selectedService = SERVICES.find((item) => item.id === form.service) || SERVICES[0];
+  const [services, setServices] = useState([]);
+  const selectedService = services.find((item) => item.id === form.service) || services[0];
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState("");
   const [chatId, setChatId] = useState(null);
@@ -28,11 +30,29 @@ export default function Home() {
       const d = await r.json(); setRequests(d.requests || []);
     } catch {}
   }
+
+  async function loadServices() {
+    try {
+      const r = await fetch("/api/services", { cache: "no-store" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Could not load services.");
+      setServices(d.services || []);
+    } catch {
+      // Fallback to default services if API fails
+      setServices([
+        { id: "install-software", name: "Software download", desc: "Get the coding tools, browsers, office apps and other programs you need on your laptop.", price: 50, unit: "per software", icon: "↓" },
+        { id: "activate-windows", name: "Activate Windows", desc: "Get Windows on your laptop activated so the activation notice and the locked settings go away.", price: 150, unit: "per laptop", icon: "⌘" },
+        { id: "install-windows", name: "Windows installation / downgrade", desc: "Install Windows or move to a supported earlier version, including the necessary drivers.", price: 300, unit: "per laptop", icon: "▣" },
+        { id: "activate-office", name: "Office activation", desc: "Activate Microsoft Office (Word, Excel, PowerPoint) that is already installed on your laptop.", price: 150, unit: "per laptop", icon: "▤" },
+      ]);
+    }
+  }
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("zhabto-identity") || "null");
       if (saved?.studentId && saved?.phone) { setIdentity(saved); loadRequests(saved.studentId, saved.phone); }
     } catch {}
+    loadServices();
   }, []);
   useEffect(() => {
     if (!identity.studentId || !identity.phone) return;
@@ -51,6 +71,18 @@ export default function Home() {
   }, [chatId, identity.studentId, identity.phone, requests.length]);
 
   function update(k, v) { setForm(p => ({ ...p, [k]: v })); }
+  function openServiceRequest(item) {
+    setForm(p => ({ ...p, service: item.id, cost: item.price, software: "" }));
+    setErrors({});
+    setNotice("");
+    setShowRequest(true);
+  }
+  function requestCardKeyDown(event, item) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openServiceRequest(item);
+    }
+  }
   async function submit(e) {
     e.preventDefault(); setErrors({}); setNotice("");
     const errs = {};
@@ -85,10 +117,7 @@ export default function Home() {
   }
   const activeChat = requests.find(r => r.id === chatId);
   return <main className="app-shell">
-    <header className="topbar">
-      <div className="brand"><Image src="/acm-logo.png" alt="ACM logo" width={54} height={54} priority /><div><span className="eyebrow">ACM Club · CST</span><h1>CST <span>Zhabto</span></h1></div></div>
-      <a className="admin-link" href="/admin/login">Admin portal ↗</a>
-    </header>
+    <Navigation />
     <section className="hero-panel">
       <div className="hero-copy"><span className="tag">CAMPUS IT SUPPORT</span><h2>Tech help,<br/><em>without the hassle.</em></h2><p>Request software installation and IT support from the ACM Club. Track your request and chat with the in-charge in one place.</p>
         <div className="hero-points"><span>01 · Send request</span><span>02 · Confirm together</span><span>03 · Get it done</span></div>
@@ -96,10 +125,12 @@ export default function Home() {
     </section>
     <section className="section services-section" id="services">
       <div className="section-heading"><div><span className="eyebrow">01 / OUR SERVICES</span><h2>How can we help you?</h2></div><p>Explore the support available from the ACM Club. Choose a service to start your request.</p></div>
-      <div className="services-grid">{SERVICES.map((item, index) => <article className="service-card" key={item.id}>
-        <div className="service-card-top"><span className="service-number">0{index + 1}</span><span className="service-icon">{["↓", "⌘", "▣", "▤"][index]}</span></div>
+      <div className="services-grid">{services.map((item, index) => <article className={`service-card${item.image ? " has-image" : ""}`} key={item.id} style={item.image ? { "--service-image": `url("${item.image.replaceAll('"', '%22')}")` } : undefined} onClick={() => openServiceRequest(item)} onKeyDown={event => requestCardKeyDown(event, item)} role="button" tabIndex={0} aria-label={`Request ${item.name}`}>
+        <div className="service-card-content">
+        <div className="service-card-top"><span className="service-number">0{index + 1}</span><span className="service-icon">{item.icon}</span></div>
         <h3>{item.name}</h3><p>{item.desc}</p>
-        <div className="service-card-bottom"><div><strong>{`Nu. ${item.price}`}</strong><span>{item.unit}</span></div><button type="button" className="service-request-btn" onClick={() => { setForm(p => ({ ...p, service: item.id, cost: item.price, software: item.id === "install-software" ? p.software : item.name })); setErrors({}); setNotice(""); setShowRequest(true); }}>Request service <span>↗</span></button></div>
+        <div className="service-card-bottom"><div><strong>{`Nu. ${item.price}`}</strong><span>{item.unit}</span></div><span className="service-request-btn">Request service <span>↗</span></span></div>
+        </div>
       </article>)}</div>
     </section>
     <section className="section requests-section">
@@ -127,7 +158,7 @@ export default function Home() {
           <label>Student ID<input value={form.studentId} onChange={e=>update("studentId",e.target.value)} placeholder="e.g. 02230155"/>{errors.studentId&&<small className="field-error">{errors.studentId}</small>}</label>
           <label>Contact number<input type="tel" value={form.phone} onChange={e=>update("phone",e.target.value)} placeholder="17xxxxxx"/>{errors.phone&&<small className="field-error">{errors.phone}</small>}</label>
           <label>Preferred date <span className="optional">Optional</span><input type="date" min={today()} value={form.preferredDate} onChange={e=>update("preferredDate",e.target.value)}/></label>
-          <label className="span-2">{form.service === "install-software" ? "Which software do you need?" : "Details / software or version needed"}<textarea rows="3" value={form.software} onChange={e=>update("software",e.target.value)} placeholder="e.g. VS Code, XAMPP, Python, Microsoft Office"/>{errors.software&&<small className="field-error">{errors.software}</small>}</label>
+          <label className="span-2">{form.service === "install-software" ? "Which software do you need?" : form.service === "install-windows" ? "Windows versions and installation details" : form.service === "activate-windows" ? "Windows edition / version" : form.service === "activate-office" ? "Office version / edition" : "Service details"}<textarea rows="3" value={form.software} onChange={e=>update("software",e.target.value)} placeholder={form.service === "install-software" ? "e.g. VS Code, XAMPP, Python" : form.service === "install-windows" ? "Current Windows version and the version you want installed" : form.service === "activate-windows" ? "e.g. Windows 11 Pro" : form.service === "activate-office" ? "e.g. Office 2021 or Microsoft 365" : "Add details about the service you need"}/>{errors.software&&<small className="field-error">{errors.software}</small>}</label>
           <label>Estimated cost (Nu.)<input type="number" min="0" value={form.cost} onChange={e=>update("cost",e.target.value)}/></label>
         </div>
         {notice && <p className="notice" role="status">{notice}</p>}
