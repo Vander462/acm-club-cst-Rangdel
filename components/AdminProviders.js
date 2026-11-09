@@ -27,7 +27,7 @@ export default function AdminProviders({ initial }) {
   }
 
   function openAddForm() {
-    setForm({ name: "", department: "", year: "", whatsapp: "", color: defaultColors[providers.length % defaultColors.length], image: "" });
+    setForm({ name: "", department: "", year: "", Whatsapp: "", color: defaultColors[providers.length % defaultColors.length], image: "" });
     setEditingId(null);
     setShowForm(true);
     setMsg("");
