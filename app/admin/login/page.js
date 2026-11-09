@@ -47,7 +47,7 @@ export default function AdminLogin() {
       </header>
       <form onSubmit={submit} className="login">
         <div className={"fld" + (error ? " bad" : "")}>
-          <label htmlFor="pw">Admin password</label>
+          <label htmlFor="pw">Admin Password</label>
           <input
             id="pw"
             type="password"
